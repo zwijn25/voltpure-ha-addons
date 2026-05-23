@@ -1,0 +1,10 @@
+build_from:
+  amd64: ghcr.io/home-assistant/amd64-base:3.19
+  aarch64: ghcr.io/home-assistant/aarch64-base:3.19
+  armv7: ghcr.io/home-assistant/armv7-base:3.19
+  armhf: ghcr.io/home-assistant/armhf-base:3.19
+labels:
+  org.opencontainers.image.title: "VoltPure Edge"
+  org.opencontainers.image.description: "VoltPure EMS edge publisher"
+  org.opencontainers.image.source: "https://github.com/zwijn25/voltpure-ha-addons"
+  org.opencontainers.image.licenses: "Proprietary"
