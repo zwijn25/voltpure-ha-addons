@@ -1,0 +1,30 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# VoltPure Edge — add-on launcher
+# ==============================================================================
+
+bashio::log.info "VoltPure Edge — start"
+
+export KLANT_ID="$(bashio::config 'klant_id')"
+export LICENSE_TOKEN="$(bashio::config 'license_token')"
+export LICENSE_URL="$(bashio::config 'license_url')"
+export MQTT_HOST="$(bashio::config 'mqtt_host')"
+export MQTT_PORT="$(bashio::config 'mqtt_port')"
+export MQTT_USE_WS="$(bashio::config 'mqtt_use_ws')"
+export LOG_LEVEL="$(bashio::config 'log_level')"
+
+# HA Supervisor API token (auto-geïnjecteerd door HA)
+export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
+export HASSIO_TOKEN="${HASSIO_TOKEN}"
+
+if [ -z "$KLANT_ID" ] || [ -z "$LICENSE_TOKEN" ]; then
+  bashio::log.fatal "klant_id en license_token verplicht — zie add-on configuratie"
+  bashio::log.fatal "Verkrijg deze via https://app.voltpure.be"
+  exit 1
+fi
+
+bashio::log.info "Klant: ${KLANT_ID}"
+bashio::log.info "MQTT: wss://${MQTT_HOST}:${MQTT_PORT}"
+
+cd /app
+exec python3 -u vp_edge.py

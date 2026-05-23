@@ -1,0 +1,43 @@
+name: VoltPure Edge
+version: "1.0.0"
+slug: vp_edge
+description: "VoltPure Energy Management — edge data-publisher voor je HA-installatie"
+url: "https://voltpure.be"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
+startup: services
+boot: auto
+init: false
+hassio_api: true
+hassio_role: default
+homeassistant_api: true
+auth_api: true
+host_network: false
+host_dbus: false
+ingress: false
+ports:
+  8080/tcp: 8080
+ports_description:
+  8080/tcp: "Edge health endpoint (lokaal, niet vereist)"
+panel_icon: mdi:flash-outline
+panel_title: VoltPure
+options:
+  klant_id: ""
+  license_token: ""
+  license_url: "https://app.voltpure.be/api/license/check"
+  mqtt_host: "mqtt.voltpure.be"
+  mqtt_port: 443
+  mqtt_use_ws: true
+  log_level: "INFO"
+schema:
+  klant_id: "str"
+  license_token: "match(^[a-f0-9]{8,64}$)"
+  license_url: "url"
+  mqtt_host: "str"
+  mqtt_port: "port"
+  mqtt_use_ws: "bool"
+  log_level: "list(DEBUG|INFO|WARNING|ERROR)"
+# image: ghcr.io/zwijn25/vp-edge-{arch}  # uncomment zodra Docker image gepushed is

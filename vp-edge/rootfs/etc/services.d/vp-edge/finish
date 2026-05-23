@@ -1,0 +1,2 @@
+#!/usr/bin/with-contenv bashio
+bashio::log.warning "VoltPure Edge gestopt — exit-code ${1}"
