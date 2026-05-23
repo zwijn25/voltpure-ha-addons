@@ -1,7 +1,7 @@
 name: VoltPure Edge
-version: "1.0.0"
+version: "1.0.1"
 slug: vp_edge
-description: "VoltPure Energy Management — edge data-publisher voor je HA-installatie"
+description: "VoltPure EMS edge — eerste installatie duurt 3-5 min (bouwt Docker image lokaal). Zie log voor voortgang."
 url: "https://voltpure.be"
 arch:
   - aarch64
