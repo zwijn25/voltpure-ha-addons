@@ -75,40 +75,58 @@ def pick_state(states: dict, entity_id: str) -> Optional[float]:
         return None
 
 
+def _pick_first(states, candidates, transform=None):
+    """Geef (value, entity_id) voor eerste match met geldige waarde."""
+    for eid in candidates:
+        v = pick_state(states, eid)
+        if v is not None:
+            return (transform(v) if transform else v), eid
+    return None, None
+
+
 def derive_metrics(states: dict) -> dict:
-    """Map HA-entities → VoltPure cloud-schema (net/pv/batt/load)."""
+    """Map HA-entities -> VoltPure cloud-schema.
 
-    grid = (
-        pick_state(states, "sensor.p1_actief_vermogen")
-        or pick_state(states, "sensor.huidig_net_vermogen")
-        or pick_state(states, "sensor.power_consumed")
-        or pick_state(states, "sensor.total_power")
-    )
-
-    pv = (
-        pick_state(states, "sensor.solar_panels_total_power")
-        or pick_state(states, "sensor.pv_total_power")
-        or pick_state(states, "sensor.solax_pv_power")
-        or pick_state(states, "sensor.solar_power")
-    )
-
-    batt = (
-        pick_state(states, "sensor.battery_charge_discharge_power")
-        or pick_state(states, "sensor.byd_seal_power")
-        or pick_state(states, "sensor.battery_power")
-    )
-
-    soc = (
-        pick_state(states, "sensor.battery_soc")
-        or pick_state(states, "sensor.solax_battery_capacity")
-        or pick_state(states, "sensor.byd_battery_soc")
-    )
-
-    ev = (
-        pick_state(states, "sensor.easee_power")
-        or pick_state(states, "sensor.peblar_power")
-        or pick_state(states, "sensor.ev_power")
-    )
+    Prioriteit:
+      1. v4_* genormaliseerde sensoren (canoniek voor elke VoltPure-klant)
+      2. Generieke fallback (voor HA's zonder VoltPure-v4 stack)
+    """
+    grid, grid_src = _pick_first(states, [
+        "sensor.v4_grid_w",
+        "sensor.huidig_net_vermogen",
+        "sensor.p1_meter_vermogen",
+        "sensor.p1_actief_vermogen",
+        "sensor.power_consumed",
+    ])
+    pv, pv_src = _pick_first(states, [
+        "sensor.v4_pv_w",
+        "sensor.voltpure_pv_w",
+        "sensor.solar_panels_total_power",
+        "sensor.pv_total_power",
+        "sensor.solax_pv_power",
+    ])
+    batt, batt_src = _pick_first(states, [
+        "sensor.v4_batt_w",
+        "sensor.byd_seal_battery_power",
+        "sensor.battery_charge_discharge_power",
+        "sensor.battery_power",
+    ])
+    soc, soc_src = _pick_first(states, [
+        "sensor.v4_soc",
+        "sensor.voltpure_soc",
+        "sensor.batterij_soc",
+        "sensor.byd_seal_batterijniveau",
+        "sensor.solax_battery_capacity",
+    ])
+    ev, ev_src = _pick_first(states, [
+        "sensor.v4_ev_kw",
+        "sensor.easee_power",
+        "sensor.peblar_power",
+        "sensor.ev_power",
+    ], transform=lambda v: v * 1000 if abs(v) < 50 else v)
+    load, load_src = _pick_first(states, [
+        "sensor.v4_home_w",
+    ])
 
     result = {
         "klant_id": KLANT_ID,
@@ -116,21 +134,22 @@ def derive_metrics(states: dict) -> dict:
         "version": VERSION,
         "source": "ha-addon",
     }
-    if grid is not None:
-        result["net_w"] = grid
-    if pv is not None:
-        result["pv_w"] = pv
-    if batt is not None:
-        result["batt_w"] = batt
-    if soc is not None:
-        result["batt_soc"] = soc
-    if ev is not None:
-        result["ev_w"] = ev
+    sources = {}
 
-    if grid is not None or pv is not None or batt is not None:
-        load = (grid or 0) + (pv or 0) - (batt or 0) - (ev or 0)
-        result["load_w"] = round(load, 1)
+    if grid is not None: result["net_w"] = grid; sources["net_w"] = grid_src
+    if pv is not None:   result["pv_w"]  = pv;   sources["pv_w"]  = pv_src
+    if batt is not None: result["batt_w"] = batt; sources["batt_w"] = batt_src
+    if soc is not None:  result["batt_soc"] = soc; sources["batt_soc"] = soc_src
+    if ev is not None:   result["ev_w"] = ev; sources["ev_w"] = ev_src
 
+    if load is not None:
+        result["load_w"] = load
+        sources["load_w"] = load_src
+    elif grid is not None or pv is not None:
+        result["load_w"] = round((grid or 0) + (pv or 0) - (batt or 0) - (ev or 0), 1)
+        sources["load_w"] = "computed:grid+pv-batt-ev"
+
+    result["_sources"] = sources
     return result
 
 
@@ -275,6 +294,24 @@ async def main():
             await asyncio.sleep(0.5)
 
         last_license_check = time.time()
+
+        # 2b. Discovery: eenmalig welke entity-mapping vp-edge gebruikt
+        try:
+            states = await ha_states(client)
+            initial_metrics = derive_metrics(states)
+            discovery = {
+                "klant_id": KLANT_ID,
+                "ts": int(time.time()),
+                "version": VERSION,
+                "edge_type": "ha-addon",
+                "entity_mapping": initial_metrics.get("_sources", {}),
+                "total_ha_entities": len(states),
+            }
+            if publisher.client and publisher.connected:
+                publisher.client.publish(f"vp/{KLANT_ID}/discovery", json.dumps(discovery), qos=1, retain=True)
+                LOG.info("Discovery gepublished: %s", discovery["entity_mapping"])
+        except Exception as e:
+            LOG.warning("Discovery-publish faalde: %s", e)
 
         # 3. Publish-loop
         while True:

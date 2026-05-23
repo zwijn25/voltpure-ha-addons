@@ -1,5 +1,5 @@
 name: VoltPure Edge
-version: "1.0.2"
+version: "1.0.3"
 slug: vp_edge
 description: "VoltPure EMS edge — eerste installatie duurt 3-5 min (bouwt Docker image lokaal). Zie log voor voortgang."
 url: "https://voltpure.be"
