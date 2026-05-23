@@ -37,7 +37,7 @@ MQTT_PORT = int(os.environ.get("MQTT_PORT", "443"))
 MQTT_USE_WS = os.environ.get("MQTT_USE_WS", "true").lower() == "true"
 SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN") or os.environ.get("HASSIO_TOKEN")
 
-VERSION = "1.0.0"
+VERSION = "1.0.3"
 PUBLISH_INTERVAL = 30  # sec
 LICENSE_RECHECK_INTERVAL = 24 * 3600  # 24u
 
